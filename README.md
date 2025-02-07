@@ -7,5 +7,5 @@ Este juego de ahorcado está diseñado para repasar conceptos relacionados con I
 - Abir en el navegador
 
 # Versión en línea
-- https://jorgecif.github.io/ahorcado/
+- https://jorgecif.github.io/ahorcadoIA/
 
