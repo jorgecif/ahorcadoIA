@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Juego de Ahorcado - IA Generativa</title>
+  <style>
+    /* Estilos generales */
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f0f2f5;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    .container {
+      width: 90%;
+      max-width: 800px;
+      background: #fff;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 40px;
+    }
+    /* Pantalla de inicio */
+    #start-screen {
+      text-align: center;
+      margin-top: 100px;
+    }
+    #start-screen input[type="text"] {
+      padding: 10px;
+      width: 60%;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #start-screen button {
+      padding: 10px 20px;
+      margin-left: 10px;
+      font-size: 16px;
+      background: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #start-screen button:hover {
+      background: #0056b3;
+    }
+    /* Área del juego */
+    #header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    #header div {
+      font-size: 16px;
+      color: #555;
+    }
+    #hangman-container {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    #word-container {
+      font-size: 32px;
+      letter-spacing: 8px;
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    #letters {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .letter-btn {
+      width: 40px;
+      height: 40px;
+      border: none;
+      background: #007bff;
+      color: #fff;
+      font-size: 18px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .letter-btn:disabled {
+      background: #aaa;
+      cursor: not-allowed;
+    }
+    #clue {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    #clue button {
+      padding: 8px 16px;
+      font-size: 14px;
+      border: none;
+      background: #28a745;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #clue button:hover {
+      background: #1e7e34;
+    }
+    /* Pantalla final */
+    #game-over {
+      text-align: center;
+      margin-top: 40px;
+    }
+    #game-over button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background: #dc3545;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #game-over button:hover {
+      background: #c82333;
+    }
+  </style>
+</head>
+<body>
+  <!-- Pantalla de inicio -->
+  <div id="start-screen">
+    <h1>Juego de Ahorcado - IA Generativa</h1>
+    <form id="start-form">
+      <input type="text" id="playerName" placeholder="Ingresa tu nombre" required>
+      <button type="submit">Iniciar juego</button>
+    </form>
+  </div>
+
+  <!-- Área del juego -->
+  <div class="container" id="game" style="display:none;">
+    <div id="header">
+      <h2 id="welcome"></h2>
+      <div>
+        <span id="progress">Palabra 0 de 10</span> | 
+        <span id="correctCount">Correctas: 0</span> | 
+        <span id="timer">Tiempo: 0 s</span> | 
+        <span id="accumulatedTime">Acumulado: 0 s</span>
+      </div>
+    </div>
+    <div id="hangman-container">
+      <canvas id="hangmanCanvas" width="200" height="250"></canvas>
+    </div>
+    <div id="word-container"></div>
+    <div id="letters"></div>
+    <div id="clue">
+      <button id="reveal-clue">Revelar pista</button>
+      <p id="clue-text" style="margin-top:10px;font-size:16px;color:#333;"></p>
+    </div>
+    <div id="round-result" style="text-align:center;margin-bottom:20px;"></div>
+    <div style="text-align:center;">
+      <button id="next-word" style="display:none;padding:10px 20px;font-size:16px;background:#17a2b8;color:#fff;border:none;border-radius:4px;cursor:pointer;">Siguiente palabra</button>
+    </div>
+  </div>
+
+  <!-- Pantalla final -->
+  <div class="container" id="game-over" style="display:none;">
+    <h2>¡Juego terminado!</h2>
+    <p id="final-score"></p>
+    <button id="restart">Reiniciar juego</button>
+  </div>
+
+  <script>
+    // Lista de conceptos relacionados con IA generativa
+    const words = [
+      { word: "CHATGPT", clue: "Modelo de lenguaje desarrollado por OpenAI" },
+      { word: "TRANSFORMER", clue: "Arquitectura basada en mecanismos de atención" },
+      { word: "GAN", clue: "Red generativa antagónica" },
+      { word: "STABLEDIFFUSION", clue: "Modelo para generar imágenes a partir de texto" },
+      { word: "DALL-E", clue: "Modelo de OpenAI para crear imágenes desde descripciones" },
+      { word: "MIDJOURNEY", clue: "Plataforma de generación de imágenes mediante IA" },
+      { word: "PROMPT", clue: "Instrucción o comando para generar contenido" },
+      { word: "FINE-TUNING", clue: "Ajuste fino de un modelo preentrenado" },
+      { word: "AUTOENCODER", clue: "Red neuronal que aprende representaciones compactas" },
+      { word: "EMBEDDING", clue: "Representación vectorial de datos en espacios continuos" }
+    ];
+    
+    // Función para mezclar el arreglo de palabras (algoritmo Fisher-Yates)
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+    
+    // Variables de estado del juego
+    let currentWordIndex = 0;
+    let currentWord = "";
+    let currentClue = "";
+    let revealedWord = [];
+    let wrongGuesses = 0;
+    const maxWrong = 6;
+    let guessedLetters = [];
+    let roundStartTime, timerInterval;
+    let playerName = "";
+    let results = []; // Resultados por ronda
+    let correctCount = 0; // Contador de palabras correctas
+    let totalTime = 0;  // Tiempo acumulado en todas las rondas
+
+    // Referencias a elementos del DOM
+    const startScreen = document.getElementById("start-screen");
+    const startForm = document.getElementById("start-form");
+    const playerNameInput = document.getElementById("playerName");
+    const gameContainer = document.getElementById("game");
+    const welcomeEl = document.getElementById("welcome");
+    const progressEl = document.getElementById("progress");
+    const correctCountEl = document.getElementById("correctCount");
+    const timerEl = document.getElementById("timer");
+    const accumulatedTimeEl = document.getElementById("accumulatedTime");
+    const wordContainer = document.getElementById("word-container");
+    const lettersContainer = document.getElementById("letters");
+    const clueButton = document.getElementById("reveal-clue");
+    const clueTextEl = document.getElementById("clue-text");
+    const roundResultEl = document.getElementById("round-result");
+    const nextWordBtn = document.getElementById("next-word");
+    const gameOverContainer = document.getElementById("game-over");
+    const finalScoreEl = document.getElementById("final-score");
+    const restartBtn = document.getElementById("restart");
+    const canvas = document.getElementById("hangmanCanvas");
+    const ctx = canvas.getContext("2d");
+    
+    // Iniciar juego
+    startForm.addEventListener("submit", function(e) {
+      e.preventDefault();
+      playerName = playerNameInput.value.trim();
+      if (playerName !== "") {
+        // Mezcla las palabras para presentarlas en orden aleatorio
+        shuffle(words);
+        welcomeEl.textContent = `Jugador: ${playerName}`;
+        startScreen.style.display = "none";
+        gameContainer.style.display = "block";
+        currentWordIndex = 0;
+        results = [];
+        correctCount = 0;
+        totalTime = 0;
+        correctCountEl.textContent = "Correctas: 0";
+        accumulatedTimeEl.textContent = "Acumulado: 0 s";
+        startRound();
+      }
+    });
+    
+    // Reiniciar juego
+    restartBtn.addEventListener("click", function() {
+      location.reload();
+    });
+    
+    // Botón para revelar pista
+    clueButton.addEventListener("click", function() {
+      clueTextEl.textContent = currentClue;
+    });
+    
+    // Botón "Siguiente palabra": detiene el contador visual, reinicia y pasa a la siguiente ronda
+    nextWordBtn.addEventListener("click", function() {
+      nextWordBtn.style.display = "none";
+      roundResultEl.textContent = "";
+      clueTextEl.textContent = "";
+      clearInterval(timerInterval);
+      timerEl.textContent = "Tiempo: 0 s";
+      currentWordIndex++;
+      if (currentWordIndex < words.length) {
+        startRound();
+      } else {
+        endGame();
+      }
+    });
+    
+    // Inicia la ronda actual: reinicia variables, actualiza la interfaz y comienza el temporizador
+    function startRound() {
+      const currentObj = words[currentWordIndex];
+      currentWord = currentObj.word.toUpperCase();
+      currentClue = currentObj.clue;
+      revealedWord = currentWord.split("").map(char => /[A-Z]/.test(char) ? "_" : char);
+      wrongGuesses = 0;
+      guessedLetters = [];
+      
+      updateWordDisplay();
+      updateProgress();
+      resetLetterButtons();
+      resetCanvas();
+      // Inicia el temporizador de esta ronda
+      roundStartTime = Date.now();
+      startTimer();
+    }
+    
+    // Actualiza la palabra oculta en pantalla
+    function updateWordDisplay() {
+      wordContainer.textContent = revealedWord.join(" ");
+    }
+    
+    // Actualiza el progreso de la ronda
+    function updateProgress() {
+      progressEl.textContent = `Palabra ${currentWordIndex + 1} de ${words.length}`;
+    }
+    
+    // Crea los botones de letras (A-Z)
+    function resetLetterButtons() {
+      lettersContainer.innerHTML = "";
+      for (let i = 65; i <= 90; i++) {
+        const letter = String.fromCharCode(i);
+        const btn = document.createElement("button");
+        btn.textContent = letter;
+        btn.classList.add("letter-btn");
+        btn.addEventListener("click", () => processGuess(letter, btn));
+        lettersContainer.appendChild(btn);
+      }
+    }
+    
+    // Procesa la letra seleccionada
+    function processGuess(letter, btn) {
+      btn.disabled = true;
+      if (guessedLetters.includes(letter)) return;
+      guessedLetters.push(letter);
+      
+      if (currentWord.includes(letter)) {
+        for (let i = 0; i < currentWord.length; i++) {
+          if (currentWord[i] === letter) {
+            revealedWord[i] = letter;
+          }
+        }
+        updateWordDisplay();
+        if (!revealedWord.includes("_")) {
+          finishRound(true);
+        }
+      } else {
+        wrongGuesses++;
+        drawHangman();
+        if (wrongGuesses === maxWrong) {
+          finishRound(false);
+        }
+      }
+    }
+    
+    // Finaliza la ronda (ya sea ganada o perdida)
+    function finishRound(won) {
+      clearInterval(timerInterval);
+      let elapsedTime = Math.floor((Date.now() - roundStartTime) / 1000);
+      totalTime += elapsedTime;
+      accumulatedTimeEl.textContent = `Acumulado: ${totalTime} s`;
+      if (won) {
+        correctCount++;
+        correctCountEl.textContent = `Correctas: ${correctCount}`;
+        roundResultEl.innerHTML = `<strong>¡Correcto!</strong> Tiempo: ${elapsedTime} s`;
+        results.push({ word: currentWord, time: elapsedTime, win: true });
+      } else {
+        roundResultEl.innerHTML = `<strong>Has perdido.</strong> La palabra era: ${currentWord}`;
+        results.push({ word: currentWord, time: elapsedTime, win: false });
+      }
+      disableAllLetterButtons();
+      nextWordBtn.style.display = "inline-block";
+    }
+    
+    // Deshabilita todos los botones de letras
+    function disableAllLetterButtons() {
+      document.querySelectorAll(".letter-btn").forEach(btn => btn.disabled = true);
+    }
+    
+    // Inicia el temporizador para la ronda actual
+    function startTimer() {
+      timerEl.textContent = "Tiempo: 0 s";
+      timerInterval = setInterval(() => {
+        let seconds = Math.floor((Date.now() - roundStartTime) / 1000);
+        timerEl.textContent = `Tiempo: ${seconds} s`;
+      }, 1000);
+    }
+    
+    // Reinicia el canvas y dibuja la estructura de la horca
+    function resetCanvas() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGallows();
+    }
+    
+    // Dibuja la horca en el canvas
+    function drawGallows() {
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 4;
+      // Base
+      ctx.beginPath();
+      ctx.moveTo(20, canvas.height - 20);
+      ctx.lineTo(180, canvas.height - 20);
+      ctx.stroke();
+      // Poste vertical
+      ctx.beginPath();
+      ctx.moveTo(50, canvas.height - 20);
+      ctx.lineTo(50, 20);
+      ctx.stroke();
+      // Viga horizontal
+      ctx.beginPath();
+      ctx.moveTo(50, 20);
+      ctx.lineTo(130, 20);
+      ctx.stroke();
+      // Cuerda
+      ctx.beginPath();
+      ctx.moveTo(130, 20);
+      ctx.lineTo(130, 40);
+      ctx.stroke();
+    }
+    
+    // Dibuja las partes del muñeco según el número de errores
+    function drawHangman() {
+      ctx.strokeStyle = "#333";
+      ctx.lineWidth = 3;
+      if (wrongGuesses === 1) {
+        // Cabeza
+        ctx.beginPath();
+        ctx.arc(130, 55, 15, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (wrongGuesses === 2) {
+        // Cuerpo
+        ctx.beginPath();
+        ctx.moveTo(130, 70);
+        ctx.lineTo(130, 120);
+        ctx.stroke();
+      } else if (wrongGuesses === 3) {
+        // Brazo izquierdo
+        ctx.beginPath();
+        ctx.moveTo(130, 80);
+        ctx.lineTo(110, 100);
+        ctx.stroke();
+      } else if (wrongGuesses === 4) {
+        // Brazo derecho
+        ctx.beginPath();
+        ctx.moveTo(130, 80);
+        ctx.lineTo(150, 100);
+        ctx.stroke();
+      } else if (wrongGuesses === 5) {
+        // Pierna izquierda
+        ctx.beginPath();
+        ctx.moveTo(130, 120);
+        ctx.lineTo(115, 150);
+        ctx.stroke();
+      } else if (wrongGuesses === 6) {
+        // Pierna derecha
+        ctx.beginPath();
+        ctx.moveTo(130, 120);
+        ctx.lineTo(145, 150);
+        ctx.stroke();
+      }
+    }
+    
+    // Muestra la pantalla final con el resumen de cada ronda, el tiempo total acumulado y el número de palabras correctas
+    function endGame() {
+      gameContainer.style.display = "none";
+      gameOverContainer.style.display = "block";
+      let message = `<strong>${playerName}</strong>, terminaste el juego.<br>`;
+      message += "Resultados por ronda:<br><ul>";
+      results.forEach((r, i) => {
+        message += `<li>Palabra ${i+1} (${r.word}): ${r.win ? r.time + " s" : "Falló"}</li>`;
+      });
+      message += `</ul><br><strong>Tiempo total acumulado: ${totalTime} s</strong>`;
+      message += `<br><strong>Palabras correctas: ${correctCount}</strong>`;
+      finalScoreEl.innerHTML = message;
+    }
+  </script>
+</body>
+</html>
+
